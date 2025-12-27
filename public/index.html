@@ -85,5 +85,43 @@
         }
       });
     </script>
+<script>
+  let updateInterval = 5000; // Default: Update every 5 seconds
+  let timerId = null;
+
+  function startMiningStats() {
+    if (timerId) clearInterval(timerId);
+    
+    // Core logic: The "throttle" based on battery
+    timerId = setInterval(() => {
+      console.log(`Fetching stats... (Frequency: every ${updateInterval / 1000}s)`);
+      // YOUR API CALL HERE: fetch('https://mining-api.com/stats')...
+    }, updateInterval);
+  }
+
+  // Detect Battery Status
+  if ('getBattery' in navigator) {
+    navigator.getBattery().then(battery => {
+      function updateLogic() {
+        const isLow = battery.level < 0.20 && !battery.charging;
+        
+        if (isLow) {
+          console.warn("Low Battery! Throttling updates to save power.");
+          updateInterval = 30000; // Slow down to every 30 seconds
+        } else {
+          updateInterval = 5000;  // Normal speed
+        }
+        startMiningStats();
+      }
+
+      // Initial check and listeners
+      updateLogic();
+      battery.addEventListener('levelchange', updateLogic);
+      battery.addEventListener('chargingchange', updateLogic);
+    });
+  } else {
+    startMiningStats(); // Fallback if browser doesn't support Battery API
+  }
+</script>
   </body>
 </html>

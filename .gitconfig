@@ -1,0 +1,7 @@
+[user]
+	email = jimtyc@gmail.com
+	name = jimtyc
+[safe]
+	directory = *
+[core]
+	longpaths = true

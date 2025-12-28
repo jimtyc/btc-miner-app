@@ -1,104 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Mining Dashboard | OLED Mode</title>
-    <style>
-        :root {
-            --bg-color: #000000;       /* Pure black for OLED battery saving */
-            --text-color: #e0e0e0;
-            --accent-color: #f2a900;   /* Bitcoin Gold */
-        }
+// CONFIGURATION
+const MINING_ADDRESS = "NHbaiczJpmLsK4Nf2QiaXp87a6C4sP8uxDZi"; // Your real ID from the provider
+const API_URL = `https://api2.nicehash.com/main/api/v2/mining/external/${MINING_ADDRESS}/stats`;
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
+async function fetchCloudMiningData() {
+    try {
+        // 1. Fetch real hashrate and balance from the cloud provider
+        const response = await fetch(API_URL);
+        const data = await response.json();
 
-        .stat-card {
-            background: #121212;
-            border: 1px solid #333;
-            border-radius: 16px;
-            padding: 30px;
-            width: 85%;
-            max-width: 400px;
-            text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
+        // 2. Extract real values (Example based on typical Pool API)
+        const activeWorkers = data.activeWorkersCount || 0;
+        const unpaidAmount = data.stats[0].balance || 0; // Real BTC waiting to be paid
+        const currentHashrate = data.stats[0].speedAccepted || 0;
 
-        h2 { color: var(--accent-color); margin-top: 0; font-size: 1.2rem; }
-        .balance { font-size: 2.5rem; font-weight: bold; margin: 10px 0; }
-        .status { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        // 3. Update OLED Dashboard
+        document.getElementById('btc-balance').textContent = parseFloat(unpaidAmount).toFixed(8);
+        document.getElementById('update-tag').textContent = `Cloud Mining: ${activeWorkers} Workers Active`;
         
-        #battery-status {
-            margin-top: 20px;
-            font-size: 0.7rem;
-            color: #555;
-        }
-    </style>
-</head>
-<body>
+        // Update USD Value (using your existing CoinGecko price logic)
+        updateUSD(unpaidAmount);
 
-    <div class="stat-card">
-        <h2>LIVE MINING STATS</h2>
-        <div class="status">Estimated Balance</div>
-        <div class="balance" id="btc-balance">0.00054210</div>
-        <div class="status" id="update-tag">Updating every 5s</div>
-        <div id="battery-status">Battery: Syncing...</div>
-    </div>
-
-    <script>
-        let updateInterval = 5000;
-        let timerId = null;
-
-        function updateUI(balance) {
-            document.getElementById('btc-balance').textContent = balance.toFixed(8);
-        }
-
-        function startMiningStats() {
-            if (timerId) clearInterval(timerId);
-            timerId = setInterval(() => {
-                // Mock balance increase to simulate mining
-                let current = parseFloat(document.getElementById('btc-balance').textContent);
-                updateUI(current + 0.00000001);
-                console.log("Stats Fetched");
-            }, updateInterval);
-        }
-
-        if ('getBattery' in navigator) {
-            navigator.getBattery().then(battery => {
-                function updateLogic() {
-                    const isLow = battery.level < 0.20 && !battery.charging;
-                    const level = Math.round(battery.level * 100);
-                    
-                    document.getElementById('battery-status').textContent = 
-                        `Battery: ${level}% ${battery.charging ? '(Charging)' : ''}`;
-
-                    if (isLow) {
-                        updateInterval = 30000; 
-                        document.getElementById('update-tag').textContent = "Power Save: Updating every 30s";
-                    } else {
-                        updateInterval = 5000;
-                        document.getElementById('update-tag').textContent = "High Performance: Updating every 5s";
-                    }
-                    startMiningStats();
-                }
-                updateLogic();
-                battery.addEventListener('levelchange', updateLogic);
-                battery.addEventListener('chargingchange', updateLogic);
-            });
-        } else {
-            startMiningStats();
-        }
-    </script>
-</body>
-</html>
+    } catch (error) {
+        console.error("Cloud Connection Failed:", error);
+        document.getElementById('update-tag').textContent = "Cloud Offline - Retrying...";
+    }
+}

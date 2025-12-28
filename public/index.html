@@ -1,27 +1,31 @@
 // CONFIGURATION
 const MINING_ADDRESS = "NHbaiczJpmLsK4Nf2QiaXp87a6C4sP8uxDZi"; // Your real ID from the provider
-const API_URL = `https://api2.nicehash.com/main/api/v2/mining/external/${MINING_ADDRESS}/stats`;
+// This adds a proxy prefix to bypass browser security
+const PROXY = "https://corsproxy.io/?"; 
+const API_URL = `${PROXY}https://api2.nicehash.com/main/api/v2/mining/external/${MINING_ADDRESS}/stats`;
 
 async function fetchCloudMiningData() {
     try {
-        // 1. Fetch real hashrate and balance from the cloud provider
         const response = await fetch(API_URL);
         const data = await response.json();
 
-        // 2. Extract real values (Example based on typical Pool API)
-        const activeWorkers = data.activeWorkersCount || 0;
-        const unpaidAmount = data.stats[0].balance || 0; // Real BTC waiting to be paid
-        const currentHashrate = data.stats[0].speedAccepted || 0;
-
-        // 3. Update OLED Dashboard
-        document.getElementById('btc-balance').textContent = parseFloat(unpaidAmount).toFixed(8);
-        document.getElementById('update-tag').textContent = `Cloud Mining: ${activeWorkers} Workers Active`;
+        // 🔍 NiceHash V2 structure check:
+        // Most external stats are nested inside 'stats' or 'miningStats'
+        const stats = data.stats && data.stats[0] ? data.stats[0] : {};
         
-        // Update USD Value (using your existing CoinGecko price logic)
-        updateUSD(unpaidAmount);
+        const unpaidAmount = stats.balance || 0; 
+        const activeWorkers = data.totalDevices || 0; 
+        const hashrate = stats.speedAccepted || 0;
+
+        // Update UI
+        document.getElementById('btc-balance').textContent = parseFloat(unpaidAmount).toFixed(8);
+        document.getElementById('update-tag').textContent = `Cloud: ${activeWorkers} Rigs | ${hashrate} H/s`;
+        
+        // Sync with your USD converter
+        if (typeof updateUSD === "function") updateUSD(unpaidAmount);
 
     } catch (error) {
-        console.error("Cloud Connection Failed:", error);
-        document.getElementById('update-tag').textContent = "Cloud Offline - Retrying...";
+        console.error("NiceHash Sync Error:", error);
+        document.getElementById('update-tag').textContent = "Connection Error - Retrying...";
     }
 }
